@@ -1,0 +1,38 @@
+{
+  "name": "BrudaGate - Traffic Aggregator",
+  "services": [
+    {
+      "type": "web",
+      "name": "brudagate-app",
+      "env": "docker",
+      "plan": "starter",
+      "dockerfilePath": "Dockerfile",
+      "autoDeploy": true,
+      "healthCheckPath": "/health",
+      "envVars": [
+        {"key": "DB_HOST", "value": "${postgres.host}"},
+        {"key": "DB_PORT", "value": "${postgres.port}"},
+        {"key": "DB_USER", "value": "${postgres.user}"},
+        {"key": "DB_PASS", "value": "${postgres.password}"},
+        {"key": "DB_NAME", "value": "${postgres.database}"},
+        {"key": "REDIS_HOST", "value": "${redis.host}"},
+        {"key": "REDIS_PORT", "value": "${redis.port}"},
+        {"key": "APP_PORT", "value": "3000"}
+      ],
+      "disk": {
+        "name": "brudagate-data",
+        "mountPath": "/data"
+      }
+    },
+    {
+      "type": "postgres",
+      "name": "brudagate-postgres",
+      "plan": "starter"
+    },
+    {
+      "type": "redis",
+      "name": "brudagate-redis",
+      "plan": "starter"
+    }
+  ]
+}

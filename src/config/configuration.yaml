@@ -1,0 +1,41 @@
+app:
+  port: 3000
+  name: brudagate
+
+database:
+  host: postgres
+  port: 5432
+  username: brudagate
+  password: brudagate
+  database: brudagate
+
+redis:
+  host: redis
+  port: 6379
+
+webhook:
+  retry:
+    attempts: 5
+    backoff:
+      type: exponential
+      delay: 1000
+
+# Merchant config — quick-add через variables
+MERCHANTS_CONFIG: |
+  [
+    {"id": "m1", "name": "CasinoRoyale", "api_key": "key_m1_abc", "webhook_url": "http://host.docker.internal:3000/webhook/m1"},
+    {"id": "m2", "name": "BetMaster", "api_key": "key_m2_xyz", "webhook_url": "http://host.docker.internal:3000/webhook/m2"}
+  ]
+
+PROVIDERS_CONFIG: |
+  [
+    {"id": "p1", "name": "NetEnt", "url": "https://netent.example.com", "api_key": "netent_key", "priority": 1},
+    {"id": "p2", "name": "PlayNGO", "url": "https://playngo.example.com", "api_key": "playngo_key", "priority": 2},
+    {"id": "p3", "name": "CPAOffer", "url": "https://cpa.example.com", "api_key": "cpa_key", "priority": 3}
+  ]
+
+RULES_CONFIG: |
+  [
+    {"id": "r1", "merchant_id": "m1", "provider_id": "p1", "priority": 1, "min_amount": 0, "max_amount": 100000, "geo": ["RU", "UA"], "devices": ["mobile", "desktop"], "weight": 100},
+    {"id": "r2", "merchant_id": "m1", "provider_id": "p2", "priority": 2, "min_amount": 100, "max_amount": 100000, "geo": ["RU"], "devices": ["mobile"], "weight": 50}
+  ]
