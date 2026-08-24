@@ -15,8 +15,15 @@ async function bootstrap() {
   // Use PORT env var for Railway deployment
   const listenPort = Number(process.env.PORT) || port;
 
+  // Fallback HTML for Railway
+  const fallbackHtml = '<!DOCTYPE html><html><head><title>BrudaGate</title></head><body><h1>BrudaGate Admin</h1><p>Admin panel loading...</p></body></html>';
+
   // Serve static files
-  app.useStaticAssets(join(process.cwd(), 'public'), { prefix: '/' });
+  try {
+    app.useStaticAssets(join(process.cwd(), 'public'), { prefix: '/' });
+  } catch {
+    // Public dir not available, use fallback
+  }
 
   // Security headers
   app.use((req, res, next) => {
@@ -46,7 +53,12 @@ async function bootstrap() {
 
   // Root path serves index.html
   httpAdapter.get('/', (req, res) => {
-    res.sendFile(join(process.cwd(), 'public', 'index.html'));
+    const indexPath = join(process.cwd(), 'public', 'index.html');
+    res.sendFile(indexPath, (err) => {
+      if (err) {
+        res.status(200).set({'Content-Type': 'text/html'}).send(fallbackHtml);
+      }
+    });
   });
 
   await app.listen(listenPort, '0.0.0.0');
