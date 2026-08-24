@@ -1,0 +1,18 @@
+{
+  "build": {
+    "dockerfilePath": "Dockerfile"
+  },
+  "services": {
+    "app": {
+      "type": "node",
+      "env": "Dockerfile",
+      "buildCommand": "npm install && npx nest build",
+      "startCommand": "node dist/main.js",
+      "port": 3000,
+      "healthCheckPath": "/api/admin/dashboard",
+      "deploy": {
+        "restart": "on-failure"
+      }
+    }
+  }
+}
