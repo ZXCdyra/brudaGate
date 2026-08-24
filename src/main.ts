@@ -16,7 +16,7 @@ async function bootstrap() {
   const listenPort = Number(process.env.PORT) || port;
 
   // Serve static files
-  app.useStaticAssets(join(__dirname, 'public'), { prefix: '/' });
+  app.useStaticAssets(join(__dirname, '..', 'public'), { prefix: '/' });
 
   // Security headers
   app.use((req, res, next) => {
@@ -46,7 +46,7 @@ async function bootstrap() {
 
   // Root path serves index.html
   httpAdapter.get('/', (req, res) => {
-    res.sendFile(join(__dirname, 'public', 'index.html'));
+    res.sendFile(join(__dirname, '..', 'public', 'index.html'));
   });
 
   await app.listen(listenPort, '0.0.0.0');
