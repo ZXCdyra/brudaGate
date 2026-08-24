@@ -33,6 +33,12 @@ async function bootstrap() {
   // API prefix
   app.setGlobalPrefix('api');
 
+  // Health check endpoint for Railway
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/health', (req, res) => {
+    res.status(200).send('OK');
+  });
+
   await app.listen(listenPort, '0.0.0.0');
   Logger.log(`🚀 BrudaGate is running on port ${listenPort}`);
 }
