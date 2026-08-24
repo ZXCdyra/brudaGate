@@ -1,4 +1,4 @@
-// Dockerfile — Multi-stage build for Railway
+# Dockerfile — Multi-stage build for Railway
 FROM node:20-alpine AS builder
 
 WORKDIR /usr/src/app
