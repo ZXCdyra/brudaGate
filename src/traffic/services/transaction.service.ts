@@ -20,6 +20,15 @@ export class TransactionService {
     @InjectQueue('webhook') private webhookQueue: Queue,
   ) {}
 
+  private getQueue(name: string): Queue | null {
+    try {
+      return this.postbackQueue || this.webhookQueue;
+    } catch {
+      this.logger.warn(`Queue ${name} not available - skipping`);
+      return null;
+    }
+  }
+
   /**
    * Создаёт или обновляет транзакцию по click_id
    */
@@ -75,20 +84,28 @@ export class TransactionService {
     // Если статус изменился на success — отправляем webhook и postback
     if (payload.status === 'success') {
       // Отправляем входящий postback к провайдеру (если нужно)
-      await this.postbackQueue.add('postback', {
-        click_id,
-        transaction_id,
-        status: 'success',
-      });
+      try {
+        await this.postbackQueue.add('postback', {
+          click_id,
+          transaction_id,
+          status: 'success',
+        });
+      } catch (e) {
+        this.logger.warn('Failed to queue postback:', e);
+      }
 
       // Отправляем исходящий webhook к мерчанту
-      await this.webhookQueue.add('webhook', {
-        click_id,
-        transaction_id,
-        merchant_id: payload.merchant_id,
-        status: 'success',
-        amount: payload.amount,
-      });
+      try {
+        await this.webhookQueue.add('webhook', {
+          click_id,
+          transaction_id,
+          merchant_id: payload.merchant_id,
+          status: 'success',
+          amount: payload.amount,
+        });
+      } catch (e) {
+        this.logger.warn('Failed to queue webhook:', e);
+      }
     }
 
     return transaction as Transaction;
@@ -146,13 +163,17 @@ export class TransactionService {
     });
 
     // Отправляем webhook к мерчанту
-    await this.webhookQueue.add('webhook', {
-      click_id: transaction.click_id,
-      transaction_id: transaction.transaction_id,
-      merchant_id: transaction.merchant_id,
-      status,
-      amount: transaction.amount,
-    });
+    try {
+      await this.webhookQueue.add('webhook', {
+        click_id: transaction.click_id,
+        transaction_id: transaction.transaction_id,
+        merchant_id: transaction.merchant_id,
+        status,
+        amount: transaction.amount,
+      });
+    } catch (e) {
+      this.logger.warn('Failed to queue webhook:', e);
+    }
 
     const updated = await this.transactionRepo.findOne({ where: { id: transaction.id } });
     return updated as Transaction;
