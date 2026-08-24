@@ -1,5 +1,5 @@
 // webhook.service.ts — Сервис для настройки вебхууков
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Merchant } from '../merchant/entities/merchant.entity';
@@ -13,7 +13,7 @@ export class WebhookService {
   constructor(
     @InjectRepository(Merchant)
     private readonly merchantRepo: Repository<Merchant>,
-    @InjectQueue('webhook') private webhookQueue: Queue,
+    @Optional() @InjectQueue('webhook') private webhookQueue?: Queue,
   ) {}
 
   /**
@@ -31,10 +31,14 @@ export class WebhookService {
     merchantId: string,
     payload: Record<string, any>,
   ): Promise<void> {
-    await this.webhookQueue.add('webhook', {
-      merchant_id: merchantId,
-      ...payload,
-    });
+    if (this.webhookQueue) {
+      await this.webhookQueue.add('webhook', {
+        merchant_id: merchantId,
+        ...payload,
+      });
+    } else {
+      this.logger.warn('Webhook queue not available — skipping queueWebhook');
+    }
   }
 
   /**

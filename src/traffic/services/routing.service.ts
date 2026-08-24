@@ -1,5 +1,5 @@
 // routing.service.ts — Сервис роутинга трафика
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Click } from '../entities/click.entity';
@@ -21,7 +21,7 @@ export class RoutingService {
     private readonly clickRepo: Repository<Click>,
     private readonly ruleService: RuleService,
     private readonly providerService: ProviderService,
-    @InjectQueue('statistics') private statisticsQueue: Queue,
+    @Optional() @InjectQueue('statistics') private statisticsQueue?: Queue,
   ) {}
 
   /**
@@ -92,12 +92,18 @@ export class RoutingService {
       const redirect_url = this.buildRedirectUrl(provider, click_id, params);
 
       // Отправляем в очередь для статистики
-      await this.statisticsQueue.add('click', {
-        click_id,
-        merchant_id: merchant.id,
-        provider_id: provider.id,
-        amount: params.amount || 0,
-      });
+      if (this.statisticsQueue) {
+        try {
+          await this.statisticsQueue.add('click', {
+            click_id,
+            merchant_id: merchant.id,
+            provider_id: provider.id,
+            amount: params.amount || 0,
+          });
+        } catch (e) {
+          this.logger.warn('Failed to queue statistics:', e);
+        }
+      }
 
       this.logger.log(
         `Routed click ${click_id} to provider ${provider.name} (${provider.id}) via rule ${selectedRule.id}`,

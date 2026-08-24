@@ -1,5 +1,5 @@
 // postback.controller.ts — Входящие endpoint для postback от провайдеров
-import { Controller, Post, Body, Headers, Query, Logger } from '@nestjs/common';
+import { Controller, Post, Body, Headers, Query, Logger, Optional } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
@@ -7,7 +7,7 @@ import { Queue } from 'bullmq';
 export class PostbackController {
   private readonly logger = new Logger(PostbackController.name);
 
-  constructor(@InjectQueue('postback') private postbackQueue: Queue) {}
+  constructor(@Optional() @InjectQueue('postback') private postbackQueue?: Queue) {}
 
   /**
    * Входящий postback от провайдера
@@ -30,15 +30,21 @@ export class PostbackController {
     }
 
     // Добавляем в очередь для обработки
-    await this.postbackQueue.add('postback', {
-      click_id,
-      transaction_id,
-      status,
-      provider_transaction_id,
-      amount,
-      provider,
-      metadata,
-    });
+    if (this.postbackQueue) {
+      try {
+        await this.postbackQueue.add('postback', {
+          click_id,
+          transaction_id,
+          status,
+          provider_transaction_id,
+          amount,
+          provider,
+          metadata,
+        });
+      } catch (e) {
+        this.logger.warn('Failed to queue postback:', e);
+      }
+    }
 
     return { received: true };
   }
@@ -55,15 +61,21 @@ export class PostbackController {
 
     this.logger.log(`Received callback from provider ${provider}: click_id=${click_id}, status=${status}`);
 
-    await this.postbackQueue.add('postback', {
-      click_id,
-      transaction_id,
-      status,
-      provider_transaction_id,
-      amount,
-      provider,
-      metadata,
-    });
+    if (this.postbackQueue) {
+      try {
+        await this.postbackQueue.add('postback', {
+          click_id,
+          transaction_id,
+          status,
+          provider_transaction_id,
+          amount,
+          provider,
+          metadata,
+        });
+      } catch (e) {
+        this.logger.warn('Failed to queue callback:', e);
+      }
+    }
 
     return { received: true };
   }

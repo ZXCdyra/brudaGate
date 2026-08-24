@@ -1,69 +1,64 @@
 // bull.module.ts — BullMQ queues configuration
-import { Module, Logger } from '@nestjs/common';
+import { Module, Logger, DynamicModule } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
-import { ConfigService } from '@nestjs/config';
 
 const logger = new Logger('BullMQModule');
 
-@Module({
-  imports: dynamicImports(),
-  exports: [],
-})
-export class BullMQModule {}
-
-export function dynamicImports(): any[] {
+function hasRedisConfig(): boolean {
   const redisUrl = process.env.REDIS_URL;
   const redisHost = process.env.REDIS_HOST;
-  const redisPort = process.env.REDIS_PORT;
 
-  // No Redis available — skip BullMQ entirely
-  if (!redisUrl && !redisHost && !redisPort) {
-    logger.warn('No Redis configured. Queue processing is disabled.');
-    return [];
-  }
-
-  // Parse REDIS_URL if available
+  // If REDIS_URL is set, use it (but it must not be localhost)
   if (redisUrl) {
     try {
       const url = new URL(redisUrl);
-      logger.log(`Redis connected via URL: ${url.hostname}:${url.port}`);
-    } catch (e) {
-      logger.error('Invalid REDIS_URL format', e);
+      if (url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') {
+        logger.log(`Redis available: ${url.hostname}:${url.port}`);
+        return true;
+      }
+    } catch {
+      // Invalid URL
     }
   }
 
-  return [
-    BullModule.forRootAsync({
-      useFactory: (config: ConfigService) => {
-        const redisUrl = config.get<string>('REDIS_URL');
-        const redisHost = config.get<string>('redis.host');
-        const redisPort = config.get<number>('redis.port');
+  // Check individual vars
+  if (redisHost && redisHost !== '127.0.0.1' && redisHost !== 'localhost') {
+    logger.log(`Redis available: ${redisHost}`);
+    return true;
+  }
 
-        if (redisUrl) {
-          const url = new URL(redisUrl);
-          return {
-            connection: {
-              host: url.hostname,
-              port: parseInt(url.port, 10) || 6379,
-              password: url.password || undefined,
-              maxRetriesPerRequest: null,
+  logger.warn('No Redis configured. Queue processing disabled.');
+  return false;
+}
+
+const redisConfig = hasRedisConfig();
+
+@Module({})
+export class BullMQModule {
+  static register(): DynamicModule[] {
+    if (!redisConfig) {
+      return [];
+    }
+
+    const redisUrl = process.env.REDIS_URL;
+
+    return [
+      BullModule.forRoot({
+        connection: redisUrl
+          ? {
+              host: new URL(redisUrl).hostname,
+              port: parseInt(new URL(redisUrl).port, 10) || 6379,
+              password: new URL(redisUrl).password || undefined,
+            }
+          : {
+              host: process.env.REDIS_HOST,
+              port: Number(process.env.REDIS_PORT || 6379),
+              password: process.env.REDIS_PASSWORD || undefined,
             },
-          };
-        }
-
-        return {
-          connection: {
-            host: redisHost,
-            port: redisPort,
-            password: config.get<string>('redis.password') || undefined,
-            maxRetriesPerRequest: null,
-          },
-        };
-      },
-      inject: [ConfigService],
-    }),
-    BullModule.registerQueue({ name: 'webhook' }),
-    BullModule.registerQueue({ name: 'postback' }),
-    BullModule.registerQueue({ name: 'statistics' }),
-  ];
+      }),
+      BullModule.registerQueue({ name: 'webhook' }),
+      BullModule.registerQueue({ name: 'postback' }),
+      BullModule.registerQueue({ name: 'statistics' }),
+    ];
+  }
 }

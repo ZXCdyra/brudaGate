@@ -1,5 +1,5 @@
 // transaction.service.ts — Сервис для работы с транзакциями
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transaction } from '../entities/transaction.entity';
@@ -16,18 +16,9 @@ export class TransactionService {
     private readonly transactionRepo: Repository<Transaction>,
     @InjectRepository(Click)
     private readonly clickRepo: Repository<Click>,
-    @InjectQueue('postback') private postbackQueue: Queue,
-    @InjectQueue('webhook') private webhookQueue: Queue,
+    @Optional() @InjectQueue('postback') private postbackQueue?: Queue,
+    @Optional() @InjectQueue('webhook') private webhookQueue?: Queue,
   ) {}
-
-  private getQueue(name: string): Queue | null {
-    try {
-      return this.postbackQueue || this.webhookQueue;
-    } catch {
-      this.logger.warn(`Queue ${name} not available - skipping`);
-      return null;
-    }
-  }
 
   /**
    * Создаёт или обновляет транзакцию по click_id
@@ -84,27 +75,31 @@ export class TransactionService {
     // Если статус изменился на success — отправляем webhook и postback
     if (payload.status === 'success') {
       // Отправляем входящий postback к провайдеру (если нужно)
-      try {
-        await this.postbackQueue.add('postback', {
-          click_id,
-          transaction_id,
-          status: 'success',
-        });
-      } catch (e) {
-        this.logger.warn('Failed to queue postback:', e);
+      if (this.postbackQueue) {
+        try {
+          await this.postbackQueue.add('postback', {
+            click_id,
+            transaction_id,
+            status: 'success',
+          });
+        } catch (e) {
+          this.logger.warn('Failed to queue postback:', e);
+        }
       }
 
       // Отправляем исходящий webhook к мерчанту
-      try {
-        await this.webhookQueue.add('webhook', {
-          click_id,
-          transaction_id,
-          merchant_id: payload.merchant_id,
-          status: 'success',
-          amount: payload.amount,
-        });
-      } catch (e) {
-        this.logger.warn('Failed to queue webhook:', e);
+      if (this.webhookQueue) {
+        try {
+          await this.webhookQueue.add('webhook', {
+            click_id,
+            transaction_id,
+            merchant_id: payload.merchant_id,
+            status: 'success',
+            amount: payload.amount,
+          });
+        } catch (e) {
+          this.logger.warn('Failed to queue webhook:', e);
+        }
       }
     }
 
@@ -163,16 +158,18 @@ export class TransactionService {
     });
 
     // Отправляем webhook к мерчанту
-    try {
-      await this.webhookQueue.add('webhook', {
-        click_id: transaction.click_id,
-        transaction_id: transaction.transaction_id,
-        merchant_id: transaction.merchant_id,
-        status,
-        amount: transaction.amount,
-      });
-    } catch (e) {
-      this.logger.warn('Failed to queue webhook:', e);
+    if (this.webhookQueue) {
+      try {
+        await this.webhookQueue.add('webhook', {
+          click_id: transaction.click_id,
+          transaction_id: transaction.transaction_id,
+          merchant_id: transaction.merchant_id,
+          status,
+          amount: transaction.amount,
+        });
+      } catch (e) {
+        this.logger.warn('Failed to queue webhook:', e);
+      }
     }
 
     const updated = await this.transactionRepo.findOne({ where: { id: transaction.id } });

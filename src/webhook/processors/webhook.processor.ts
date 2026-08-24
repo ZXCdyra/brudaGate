@@ -1,6 +1,6 @@
 // webhook.processor.ts — Обработчик исходящих вебхууков к мерчантам
 import { Worker } from 'bullmq';
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,19 +10,25 @@ import { Merchant } from '../../merchant/entities/merchant.entity';
 @Injectable()
 export class WebhookProcessor implements OnModuleInit {
   private readonly logger = new Logger(WebhookProcessor.name);
+  private worker: Worker | null = null;
 
   constructor(
-    @InjectQueue('webhook') private webhookQueue: Queue,
+    @Optional() @InjectQueue('webhook') private webhookQueue: Queue,
     @InjectRepository(Merchant)
     private readonly merchantRepo: Repository<Merchant>,
   ) {}
 
   async onModuleInit() {
+    if (!this.webhookQueue) {
+      this.logger.warn('Webhook queue not available — processor disabled');
+      return;
+    }
+
     /**
      * Отправка вебхуука к мерчанту при изменении статуса сделки
      * Поддерживает повторные попытки при ошибке
      */
-    const worker = new Worker(
+    this.worker = new Worker(
       'webhook',
       async (job) => {
         const { click_id, transaction_id, merchant_id, status, amount } = job.data;
@@ -61,7 +67,7 @@ export class WebhookProcessor implements OnModuleInit {
       },
     );
 
-    worker.on('error', (err) => {
+    this.worker.on('error', (err) => {
       this.logger.error('Webhook worker error:', err);
     });
   }

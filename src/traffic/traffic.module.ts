@@ -1,7 +1,6 @@
 // traffic.module.ts — Модуль трафика
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { BullModule } from '@nestjs/bullmq';
 import { TrafficController } from './traffic.controller';
 import { RoutingService } from './services/routing.service';
 import { TransactionService } from './services/transaction.service';
@@ -14,11 +13,6 @@ import { RuleModule } from '../rule/rule.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Click, Transaction]),
-    BullModule.registerQueue(
-      { name: 'postback' },
-      { name: 'webhook' },
-      { name: 'statistics' },
-    ),
     MerchantModule,
     ProviderModule,
     RuleModule,

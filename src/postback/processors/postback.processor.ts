@@ -1,6 +1,6 @@
 // postback.processor.ts — Процессор входящих postback от провайдеров
 import { Worker } from 'bullmq';
-import { Logger, Injectable, OnModuleInit } from '@nestjs/common';
+import { Logger, Injectable, OnModuleInit, Optional } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { TransactionService } from '../../traffic/services/transaction.service';
@@ -8,18 +8,24 @@ import { TransactionService } from '../../traffic/services/transaction.service';
 @Injectable()
 export class PostbackProcessor implements OnModuleInit {
   private readonly logger = new Logger(PostbackProcessor.name);
+  private worker: Worker | null = null;
 
   constructor(
-    @InjectQueue('postback') private postbackQueue: Queue,
+    @Optional() @InjectQueue('postback') private postbackQueue: Queue,
     private readonly transactionService: TransactionService,
   ) {}
 
   async onModuleInit() {
+    if (!this.postbackQueue) {
+      this.logger.warn('Postback queue not available — processor disabled');
+      return;
+    }
+
     /**
      * Обработка входящего postback от провайдера
      * Обновляет статус транзакции
      */
-    const worker = new Worker(
+    this.worker = new Worker(
       'postback',
       async (job) => {
         const { click_id, transaction_id, status, provider_transaction_id, amount, metadata } = job.data;
@@ -42,7 +48,7 @@ export class PostbackProcessor implements OnModuleInit {
       },
     );
 
-    worker.on('error', (err) => {
+    this.worker.on('error', (err) => {
       this.logger.error('Postback worker error:', err);
     });
   }
