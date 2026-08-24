@@ -8,7 +8,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { abortOnError: false });
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('app.port', { infer: true });
+  const port = configService.get<number>('app.port', 3000);
 
   // Security headers
   app.use((req, res, next) => {
@@ -30,8 +30,8 @@ async function bootstrap() {
   // API prefix
   app.setGlobalPrefix('api');
 
-  await app.listen(port ?? 3000);
-  Logger.log(`🚀 BrudaGate is running on port ${port ?? 3000}`);
+  await app.listen(port);
+  Logger.log(`🚀 BrudaGate is running on port ${port}`);
 }
 
 void bootstrap();

@@ -1,3 +1,4 @@
+// Dockerfile — Multi-stage build for Railway
 FROM node:20-alpine AS builder
 
 WORKDIR /usr/src/app
@@ -15,7 +16,7 @@ WORKDIR /usr/src/app
 COPY --from=builder /usr/src/app/package*.json ./
 COPY --from=builder /usr/src/app/dist ./dist
 
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --legacy-peer-deps
 
 EXPOSE 3000
 

@@ -22,17 +22,29 @@ import configuration from './config/configuration';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService): TypeOrmModuleOptions => ({
-        type: 'postgres',
-        host: config.get('DB_HOST', 'localhost'),
-        port: Number(config.get('DB_PORT', 5432)),
-        username: config.get('DB_USER', 'brudagate'),
-        password: config.get('DB_PASS', 'brudagate'),
-        database: config.get('DB_NAME', 'brudagate'),
-        autoLoadEntities: true,
-        synchronize: true,
-        logging: ['error'],
-      }),
+      useFactory: (config: ConfigService): TypeOrmModuleOptions => {
+        const databaseUrl = config.get<string>('DATABASE_URL');
+        if (databaseUrl) {
+          return {
+            type: 'postgres',
+            url: databaseUrl,
+            autoLoadEntities: true,
+            synchronize: true,
+            logging: ['error'],
+          };
+        }
+        return {
+          type: 'postgres',
+          host: config.get('DB_HOST', 'localhost'),
+          port: Number(config.get('DB_PORT', 5432)),
+          username: config.get('DB_USER', 'brudagate'),
+          password: config.get('DB_PASS', 'brudagate'),
+          database: config.get('DB_NAME', 'brudagate'),
+          autoLoadEntities: true,
+          synchronize: true,
+          logging: ['error'],
+        };
+      },
     }),
     BullMQModule,
     MerchantModule,

@@ -9,8 +9,9 @@ import { Queue } from 'bullmq';
     BullModule.forRootAsync({
       useFactory: (config: ConfigService) => ({
         connection: {
-          host: config.get('REDIS_HOST', 'localhost'),
-          port: config.get('REDIS_PORT', 6379),
+          host: config.get('redis.host', 'localhost'),
+          port: config.get('redis.port', 6379),
+          password: config.get('redis.password') || undefined,
         },
       }),
       inject: [ConfigService],
