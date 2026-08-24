@@ -10,6 +10,9 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port', 3000);
 
+  // Use PORT env var for Railway deployment
+  const listenPort = Number(process.env.PORT) || port;
+
   // Security headers
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -30,8 +33,8 @@ async function bootstrap() {
   // API prefix
   app.setGlobalPrefix('api');
 
-  await app.listen(port);
-  Logger.log(`🚀 BrudaGate is running on port ${port}`);
+  await app.listen(listenPort, '0.0.0.0');
+  Logger.log(`🚀 BrudaGate is running on port ${listenPort}`);
 }
 
 void bootstrap();
